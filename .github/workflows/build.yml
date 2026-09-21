@@ -13,12 +13,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Unzip project
+      - name: Unzip and prepare project
         run: |
-          unzip -o *.zip
-          # Si al descomprimir los archivos quedaron dentro de una subcarpeta, los mueve a la raíz
-          if [ -d "mi_mod_realista" ]; then
-            cp -r mi_mod_realista/* .
+          if ls *.zip 1> /dev/null 2>&1; then
+            unzip -o *.zip
+          fi
+          BUILD_PATH=$(find . -name "build.gradle" -not -path "./build.gradle" | head -n 1)
+          if [ -n "$BUILD_PATH" ]; then
+            DIR=$(dirname "$BUILD_PATH")
+            echo "Encontrado en $DIR, moviendo a la raíz..."
+            cp -r "$DIR"/* .
           fi
 
       - name: Set up JDK 21
@@ -29,9 +33,17 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '8.8'
 
       - name: Build Mod with Gradle
-        run: gradle build
+        run: |
+          if [ -f "./gradlew" ]; then
+            chmod +x gradlew
+            ./gradlew build
+          else
+            gradle build
+          fi
 
       - name: Upload Mod Jar
         uses: actions/upload-artifact@v4
