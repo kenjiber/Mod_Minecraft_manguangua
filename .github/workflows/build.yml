@@ -1,0 +1,40 @@
+name: Build Minecraft Mod
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Unzip project
+        run: |
+          unzip -o *.zip
+          # Si al descomprimir los archivos quedaron dentro de una subcarpeta, los mueve a la raíz
+          if [ -d "mi_mod_realista" ]; then
+            cp -r mi_mod_realista/* .
+          fi
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build Mod with Gradle
+        run: gradle build
+
+      - name: Upload Mod Jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: mod-compilado
+          path: build/libs/*.jar
