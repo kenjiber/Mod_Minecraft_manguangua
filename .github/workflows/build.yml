@@ -32,7 +32,31 @@ jobs:
         with:
           gradle-version: 9.2.1
 
+      # El proyecto (build.gradle/settings.gradle) puede estar en la raiz
+      # del repo o dentro de una subcarpeta (por ejemplo si al subir el
+      # zip quedo todo dentro de "thestalker/"). Este paso lo busca solo,
+      # asi el workflow funciona sea cual sea tu estructura de carpetas.
+      - name: Detectar carpeta del proyecto Gradle
+        id: locate
+        run: |
+          if [ -f "settings.gradle" ] || [ -f "settings.gradle.kts" ]; then
+            echo "Proyecto encontrado en la raiz del repo."
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          else
+            FOUND=$(find . -maxdepth 4 \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit)
+            if [ -z "$FOUND" ]; then
+              echo "::error::No se encontro ningun settings.gradle en el repo (hasta 4 niveles de profundidad)."
+              echo "Contenido del repo para depurar:"
+              find . -maxdepth 3 -not -path '*/.git/*'
+              exit 1
+            fi
+            DIR=$(dirname "$FOUND")
+            echo "Proyecto encontrado en: $DIR"
+            echo "dir=$DIR" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Compilar con Gradle
+        working-directory: ${{ steps.locate.outputs.dir }}
         run: gradle build --stacktrace
 
       - name: Subir el .jar del mod
@@ -40,7 +64,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: thestalker-jar
-          path: build/libs/*.jar
+          path: '**/build/libs/*.jar'
           if-no-files-found: warn
 
       # Si el build falla, esto te deja descargar los reportes de Gradle
@@ -51,8 +75,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-reports
-          path: |
-            build/reports
-            **/build/reports
+          path: '**/build/reports'
           if-no-files-found: ignore
           
