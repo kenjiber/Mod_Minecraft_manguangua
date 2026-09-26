@@ -1,4 +1,4 @@
-name: Build Minecraft Mod
+name: Compilar Mod Fabric 1.21.11
 
 on:
   push:
@@ -8,45 +8,55 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Descargar código
         uses: actions/checkout@v4
 
-      - name: Unzip and prepare project
+      - name: Descomprimir y preparar archivos
         run: |
-          if ls *.zip 1> /dev/null 2>&1; then
-            unzip -o *.zip
-          fi
-          BUILD_PATH=$(find . -name "build.gradle" -not -path "./build.gradle" | head -n 1)
-          if [ -n "$BUILD_PATH" ]; then
-            DIR=$(dirname "$BUILD_PATH")
-            echo "Encontrado en $DIR, moviendo a la raíz..."
-            cp -r "$DIR"/* .
+          echo "=== Archivos iniciales en el repositorio ==="
+          ls -la
+
+          ZIP_FILE=$(find . -maxdepth 2 -iname "*.zip" | head -n 1)
+          if [ -n "$ZIP_FILE" ]; then
+            echo "Descomprimiendo: $ZIP_FILE"
+            unzip -o "$ZIP_FILE"
           fi
 
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+          GRADLE_DIR=$(find . -name "build.gradle" -exec dirname {} \; | head -n 1)
+          if [ -n "$GRADLE_DIR" ] && [ "$GRADLE_DIR" != "." ]; then
+            echo "Moviendo archivos desde $GRADLE_DIR a la raíz..."
+            cp -rn "$GRADLE_DIR"/* .
+          fi
+
+          echo "=== Archivos en la raíz tras mover ==="
+          ls -la
+
+          chmod +x gradlew 2>/dev/null || true
+
+      - name: Configurar Java 21
+        uses: actions/setup-java@v5
         with:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+      - name: Configurar Gradle 9.2.1
+        uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.8'
+          gradle-version: '9.2.1'
 
-      - name: Build Mod with Gradle
+      - name: Compilar con Gradle
         run: |
           if [ -f "./gradlew" ]; then
-            chmod +x gradlew
-            ./gradlew build
+            echo "Usando Gradle wrapper del proyecto"
+            ./gradlew build --stacktrace
           else
-            gradle build
+            echo "Wrapper no encontrado, usando Gradle del sistema"
+            gradle build --stacktrace
           fi
 
-      - name: Upload Mod Jar
+      - name: Guardar archivo JAR
         uses: actions/upload-artifact@v4
         with:
-          name: mod-compilado
+          name: mod-jar
           path: build/libs/*.jar
