@@ -21,5 +21,21 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      - name: Show project structure
+        run: |
+          echo "Contenido del repositorio:"
+          find . -maxdepth 3 -type f | sort
+
       - name: Build with Gradle
-        run: gradle clean build
+        run: |
+          if [ -f "settings.gradle" ]; then
+            gradle clean build
+          elif [ -f "settings.gradle.kts" ]; then
+            gradle clean build
+          elif [ -f "TheStalker/settings.gradle" ]; then
+            cd TheStalker
+            gradle clean build
+          else
+            echo "ERROR: No se encontró settings.gradle"
+            exit 1
+          fi
