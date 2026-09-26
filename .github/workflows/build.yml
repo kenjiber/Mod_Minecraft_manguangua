@@ -32,28 +32,37 @@ jobs:
         with:
           gradle-version: 9.2.1
 
-      # El proyecto (build.gradle/settings.gradle) puede estar en la raiz
-      # del repo o dentro de una subcarpeta (por ejemplo si al subir el
-      # zip quedo todo dentro de "thestalker/"). Este paso lo busca solo,
-      # asi el workflow funciona sea cual sea tu estructura de carpetas.
-      - name: Detectar carpeta del proyecto Gradle
+      # Busca settings.gradle en el repo. Si no lo encuentra pero hay un
+      # .zip en la raiz (p.ej. subiste el zip del proyecto sin descomprimir),
+      # lo extrae solo y vuelve a buscar antes de rendirse.
+      - name: Detectar (o extraer) la carpeta del proyecto Gradle
         id: locate
         run: |
-          if [ -f "settings.gradle" ] || [ -f "settings.gradle.kts" ]; then
-            echo "Proyecto encontrado en la raiz del repo."
-            echo "dir=." >> "$GITHUB_OUTPUT"
-          else
-            FOUND=$(find . -maxdepth 4 \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit)
-            if [ -z "$FOUND" ]; then
-              echo "::error::No se encontro ningun settings.gradle en el repo (hasta 4 niveles de profundidad)."
-              echo "Contenido del repo para depurar:"
-              find . -maxdepth 3 -not -path '*/.git/*'
-              exit 1
+          find_settings() {
+            find . -maxdepth 4 \( -name settings.gradle -o -name settings.gradle.kts \) -not -path '*/.git/*' -print -quit
+          }
+
+          FOUND=$(find_settings)
+
+          if [ -z "$FOUND" ]; then
+            ZIP=$(find . -maxdepth 2 -iname "*.zip" -not -path '*/.git/*' -print -quit)
+            if [ -n "$ZIP" ]; then
+              echo "No habia settings.gradle, pero encontre $ZIP -> extrayendo..."
+              unzip -q "$ZIP" -d .
+              FOUND=$(find_settings)
             fi
-            DIR=$(dirname "$FOUND")
-            echo "Proyecto encontrado en: $DIR"
-            echo "dir=$DIR" >> "$GITHUB_OUTPUT"
           fi
+
+          if [ -z "$FOUND" ]; then
+            echo "::error::No se encontro ningun settings.gradle en el repo (ni suelto ni dentro de un .zip en la raiz)."
+            echo "Contenido del repo para depurar:"
+            find . -maxdepth 3 -not -path '*/.git/*'
+            exit 1
+          fi
+
+          DIR=$(dirname "$FOUND")
+          echo "Proyecto encontrado en: $DIR"
+          echo "dir=$DIR" >> "$GITHUB_OUTPUT"
 
       - name: Compilar con Gradle
         working-directory: ${{ steps.locate.outputs.dir }}
