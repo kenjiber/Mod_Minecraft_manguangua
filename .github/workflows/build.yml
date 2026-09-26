@@ -21,30 +21,6 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Find Gradle project
-        run: |
-          echo "Buscando settings.gradle..."
-          find . -name "settings.gradle" -type f -print
-          echo "Buscando build.gradle..."
-          find . -name "build.gradle" -type f -print
-
-      - name: Build mod
-        shell: bash
-        run: |
-          SETTINGS=$(find . -name "settings.gradle" -type f -print -quit)
-
-          if [ -z "$SETTINGS" ]; then
-            echo "ERROR: No se encontró settings.gradle en el repositorio."
-            exit 1
-          fi
-
-          PROJECT_DIR=$(dirname "$SETTINGS")
-
-          echo "Proyecto Gradle encontrado en: $PROJECT_DIR"
-
-          cd "$PROJECT_DIR"
-
-          echo "Archivos del proyecto:"
-          ls -la
-
-          gradle clean build
+      - name: Build TheStalker
+        working-directory: ./thestalkerv7
+        run: gradle clean build
